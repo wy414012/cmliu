@@ -2,15 +2,15 @@ name: Update TV API Config
 
 on:
   schedule:
-    - cron: '0 0 * * 1'  # 每周一运行
-  workflow_dispatch:  # 允许手动触发
+    - cron: '0 0 * * 1'  # Run every Monday at midnight
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   update-config:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -24,43 +24,43 @@ jobs:
 
       - name: Check MOONTV_CONFIG_URL variable
         run: |
-          # 检查是否设置了MOONTV_CONFIG_URL变量
+          # Check if MOONTV_CONFIG_URL variable is set
           MOONTV_CONFIG_URL="${{ vars.MOONTV_CONFIG_URL }}"
           if [ -z "$MOONTV_CONFIG_URL" ]; then
-            echo "❌ 错误: 未设置 MOONTV_CONFIG_URL 变量"
-            echo "请在仓库设置中添加 MOONTV_CONFIG_URL 变量："
-            echo "1. 进入仓库 Settings > Secrets and variables > Actions"
-            echo "2. 在 Variables 标签页中添加新变量"
+            echo "❌ Error: MOONTV_CONFIG_URL variable is not set"
+            echo "Please add MOONTV_CONFIG_URL variable in repository settings:"
+            echo "1. Go to Settings > Secrets and variables > Actions"
+            echo "2. Add a new variable under the Variables tab"
             echo "3. Name: MOONTV_CONFIG_URL"
-            echo "4. Value: 配置文件的URL地址"
+            echo "4. Value: URL of the configuration file"
             exit 1
           fi
-          echo "✅ MOONTV_CONFIG_URL 变量已设置: $MOONTV_CONFIG_URL"
+          echo "✅ MOONTV_CONFIG_URL variable is set: $MOONTV_CONFIG_URL"
 
       - name: Download and process config
         run: |
-          # 下载配置文件
+          # Download the config file
           MOONTV_CONFIG_URL="${{ vars.MOONTV_CONFIG_URL }}"
-          echo "正在下载配置文件: $MOONTV_CONFIG_URL"
+          echo "Downloading config file: $MOONTV_CONFIG_URL"
           curl -s -o config.json "$MOONTV_CONFIG_URL"
           
-          # 压缩并进行base58编码
+          # Compress and encode with base58
           python3 -c "
           import json
           import base58
           import sys
           
-          # 读取并解析JSON
+          # Read and parse JSON
           with open('config.json', 'r', encoding='utf-8') as f:
               data = json.load(f)
           
-          # 压缩JSON（去除空格和换行）
+          # Compress JSON (remove whitespace and newlines)
           compressed = json.dumps(data, separators=(',', ':'), ensure_ascii=False)
           
-          # Base58编码
+          # Base58 encoding
           encoded = base58.b58encode(compressed.encode('utf-8')).decode('ascii')
           
-          # 写入文件
+          # Write to file
           with open('tvapi_config_json', 'w', encoding='utf-8') as f:
               f.write(encoded)
           
@@ -73,13 +73,13 @@ jobs:
             git config --local user.name "GitHub Action"
             git add tvapi_config_json
             
-            # 检查是否有变更
+            # Check for changes
             if git diff --cached --quiet; then
-            echo "没有文件变更，跳过提交"
+            echo "No file changes detected, skipping commit"
             else
-            echo "检测到文件变更，开始提交"
+            echo "Detected file changes, starting commit"
             git commit -m "Downloaded file on $(date "+%Y/%m/%d %H:%M:%S")"
             git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{github.repository}}.git
             git push
-            echo "提交完成"
+            echo "Commit completed"
             fi
